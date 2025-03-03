@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Улучшенная симуляция Солнечной системы</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(100, 100, 255, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 10;
+            max-width: 300px;
+        }
+        .slider-container {
+            margin-bottom: 12px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #7aaeff;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        button {
+            background-color: #3066BE;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #4a7ecf;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(100, 100, 255, 0.5);
+            backdrop-filter: blur(5px);
+        }
+        .legend h3 {
+            margin-top: 0;
+            color: #7aaeff;
+            border-bottom: 1px solid #7aaeff;
+            padding-bottom: 5px;
+        }
+        .legend div {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .legend span {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            box-shadow: 0 0 3px white;
+        }
+        .info-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 400px;
+            box-shadow: 0 0 10px rgba(100, 100, 255, 0.5);
+            backdrop-filter: blur(5px);
+            display: none;
+        }
+        .info-title {
+            margin-top: 0;
+            color: #7aaeff;
+            border-bottom: 1px solid #7aaeff;
+            padding-bottom: 5px;
+        }
+        .info-content {
+            margin-top: 10px;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .checkbox-container input {
+            margin-right: 10px;
+        }
+        #timeStat {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 8px 15px;
+            border-radius: 15px;
+            box-shadow: 0 0 10px rgba(100, 100, 255, 0.5);
+            backdrop-filter: blur(5px);
+            font-size: 14px;
+            color: #7aaeff;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="solarSystem"></canvas>
+
+    <div class="controls">
+        <div class="slider-container">
+            <label for="speed">Скорость времени:</label>
+            <input type="range" id="speed" min="0.1" max="10" step="0.1" value="1">
+            <div style="display: flex; justify-content: space-between;">
+                <span>0.1x</span>
+              <span id="speedValue">1x</span>
+                <span>10x</span>
+            </div>
+        </div>
+
+        <div class="slider-container">
+            <label for="scale">Масштаб системы:</label>
+            <input type="range" id="scale" min="0.5" max="3" step="0.1" value="1">
+            <div style="display: flex; justify-content: space-between;">
+                <span>0.5x</span>
+                <span id="scaleValue">1x</span>
+                <span>3x</span>
+            </div>
+        </div>
+
+        <div class="slider-container">
+            <label for="sizeScale">Размер планет:</label>
+            <input type="range" id="sizeScale" min="0.5" max="2" step="0.1" value="1">
+            <div style="display: flex; justify-content: space-between;">
+                <span>0.5x</span>
+                <span id="sizeScaleValue">1x</span>
+                <span>2x</span>
+            </div>
+        </div>
+
+        <div class="checkbox-container">
+            <input type="checkbox" id="showLabels" checked>
+            <label for="showLabels" style="display: inline; margin-bottom: 0;">Показать названия</label>
+        </div>
+
+        <div class="checkbox-container">
+            <input type="checkbox" id="showOrbits" checked>
+            <label for="showOrbits" style="display: inline; margin-bottom: 0;">Показать орбиты</label>
+        </div>
+
+        <div class="button-container">
+            <button id="resetButton">Сбросить</button>
+            <button id="toggleControlsButton">Скрыть панель</button>
+        </div>
+    </div>
+
+    <div class="legend">
+        <h3>Планеты</h3>
+        <div><span style="background-color: #FDB813;"></span>Солнце</div>
+        <div><span style="background-color: #A37B6D;"></span>Меркурий</div>
+        <div><span style="background-color: #E39E65;"></span>Венера</div>
+        <div><span style="background-color: #3066BE;"></span>Земля</div>
+        <div><span style="background-color: #C1440E;"></span>Марс</div>
+        <div><span style="background-color: #E8AE68;"></span>Юпитер</div>
+        <div><span style="background-color: #EAC784;"></span>Сатурн</div>
+        <div><span style="background-color: #5B84B1;"></span>Уран</div>
+        <div><span style="background-color: #1D6A96;"></span>Нептун</div>
+    </div>
+
+    <div id="infoPanel" class="info-panel">
+        <h3 class="info-title">Информация о планете</h3>
+        <div id="infoContent" class="info-content"></div>
+    </div>
+
+    <div id="timeStat">Симуляция времени: 0 дней</div>
+
+    <script>
+        const canvas = document.getElementById('solarSystem');
+        const ctx = canvas.getContext('2d');
+        const speedSlider = document.getElementById('speed');
+        const speedValue = document.getElementById('speedValue');
+        const scaleSlider = document.getElementById('scale');
+        const scaleValue = document.getElementById('scaleValue');
+        const sizeScaleSlider = document.getElementById('sizeScale');
+        const sizeScaleValue = document.getElementById('sizeScaleValue');
+        const resetButton = document.getElementById('resetButton');
+        const showLabelsCheckbox = document.getElementById('showLabels');
+        const showOrbitsCheckbox = document.getElementById('showOrbits');
+        const infoPanel = document.getElementById('infoPanel');
+        const infoContent = document.getElementById('infoContent');
+        const timeStat = document.getElementById('timeStat');
+        const toggleControlsButton = document.getElementById('toggleControlsButton');
+
+        // Размеры холста
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Центр солнечной системы
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        // Параметры настройки
+        let timeSpeed = 1;
+        let scaleFactor = 1;
+        let planetSizeFactor = 1;
+        let time = 0;
+        let simulationDays = 0;
+        let showLabels = true;
+        let showOrbits = true;
+        let followPlanet = null;
+        let focusPoint = { x: centerX, y: centerY };
+        let mousePosition = { x: 0, y: 0 };
+        let hoveredPlanet = null;
+        let selectedPlanet = null;
+        let controlsVisible = true;
+
+        // Планеты (название, цвет, радиус (км), расстояние (млн. км), орбитальный период (дни), наклон орбиты (градусы), описание)
+        const planets = [
+            {
+                name: "Солнце",
+                color: "#FDB813",
+                radius: 696340,
+                distance: 0,
+                period: 0,
+                tilt: 0,
+                moons: [],
+                description: "Солнце — центральная звезда Солнечной системы, типичная звезда спектрального класса G2V. Вокруг Солнца обращаются планеты и другие объекты Солнечной системы. Масса Солнца составляет 99,866% от общей массы Солнечной системы. Температура поверхности около 5500°C.",
+                rotationPeriod: 25.05,
+                mass: "1.9885 × 10^30 кг",
+                surfaceTemp: "5500°C",
+                atmosphere: "Водород (73.46%), гелий (24.85%), кислород, углерод, азот и др."
+            },
+            {
+                name: "Меркурий",
+                color: "#A37B6D",
+                radius: 2439,
+                distance: 57.9,
+                period: 88,
+                tilt: 7,
+                moons: [],
+                description: "Меркурий — самая маленькая и ближайшая к Солнцу планета Солнечной системы. Поверхность покрыта многочисленными кратерами. Из-за отсутствия атмосферы, температура колеблется от -180°C ночью до +430°C днем.",
+                rotationPeriod: 58.6,
+                mass: "3.3011 × 10^23 кг",
+                surfaceTemp: "−180°C to +430°C",
+                atmosphere: "Практически отсутствует (следы натрия, кислорода, водорода, гелия)"
+            },
+            {
+                name: "Венера",
+                color: "#E39E65",
+                radius: 6052,
+                distance: 108.2,
+                period: 224.7,
+                tilt: 3.4,
+                moons: [],
+                description: "Венера — вторая планета от Солнца. Атмосфера в основном состоит из углекислого газа. Из-за парникового эффекта температура поверхности около 462°C. Венера вращается в направлении, противоположном большинству планет.",
+                rotationPeriod: -243,
+                mass: "4.8675 × 10^24 кг",
+                surfaceTemp: "462°C",
+                atmosphere: "Углекислый газ (96.5%), азот (3.5%), диоксид серы, аргон"
+            },
+            {
+                name: "Земля",
+                color: "#3066BE",
+                radius: 6371,
+                distance: 149.6,
+                period: 365.2,
+                tilt: 0,
+                moons: [
+                    { name: "Луна", radius: 1737, distance: 0.384, period: 27.3, color: "#D0D0D0", description: "Луна — единственный естественный спутник Земли. Влияет на приливы и отливы. Одна сторона всегда обращена к Земле.", rotationPeriod: 27.3 }
+                ],
+                description: "Земля — третья планета от Солнца и единственная известная планета с жизнью. 71% поверхности покрыто водой. Атмосфера богата кислородом (21%) и защищает от космической радиации.",
+                rotationPeriod: 1,
+                mass: "5.9724 × 10^24 кг",
+                surfaceTemp: "−88°C to +58°C",
+                atmosphere: "Азот (78%), кислород (21%), аргон (0.9%), углекислый газ (0.04%)"
+            },
+            {
+                name: "Марс",
+                color: "#C1440E",
+                radius: 3389.5,
+                distance: 227.9,
+                period: 687,
+                tilt: 1.8,
+                moons: [
+                    { name: "Фобос", radius: 11, distance: 0.009, period: 0.32, color: "#C2B8A3", description: "Фобос — больший из двух спутников Марса. Имеет неправильную форму. Постепенно приближается к Марсу.", rotationPeriod: 0.32 },
+                    { name: "Деймос", radius: 6, distance: 0.023, period: 1.26, color: "#C2B8A3", description: "Деймос — меньший из двух спутников Марса.Имеет неправильную форму и очень малый размер.", rotationPeriod: 1.26 }
+                ],
+                description: "Марс — четвертая планета от Солнца. Известна красной поверхностью из-за оксида железа (ржавчины). Имеет тонкую атмосферу и полярные ледяные шапки из воды и углекислого газа.",
+                rotationPeriod: 1.03,
+                mass: "6.4171 × 10^23 кг",
+                surfaceTemp: "−153°C to +20°C",
+                atmosphere: "Углекислый газ (95.3%), азот (2.7%), аргон (1.6%)"
+            },
+            {
+                name: "Юпитер",
+                color: "#E8AE68",
+                radius: 69911,
+                distance: 778.5,
+                period: 4331,
+                tilt: 1.3,
+                moons: [
+                    { name: "Ио", radius: 1821, distance: 0.422, period: 1.77, color: "#F5D74F", description: "Ио — самый вулканически активный объект в Солнечной системе. Поверхность постоянно меняется из-за извержений.", rotationPeriod: 1.77 },
+                    { name: "Европа", radius: 1560, distance: 0.671, period: 3.55, color: "#F5F5DC", description: "Европа имеет ледяную поверхность и, предположительно, жидкий океан под ней. Считается перспективным местом для поиска внеземной жизни.", rotationPeriod: 3.55 },
+                    { name: "Ганимед", radius: 2634, distance: 1.070, period: 7.15, color: "#D0D0D0", description: "Ганимед — крупнейший спутник в Солнечной системе, больше Меркурия. Имеет собственное магнитное поле.", rotationPeriod: 7.15 },
+                    { name: "Каллисто", radius: 2410, distance: 1.883, period: 16.69, color: "#A09890", description: "Каллисто — второй по размеру спутник Юпитера. Его поверхность — самая старая и испещренная кратерами в Солнечной системе.", rotationPeriod: 16.69 }
+                ],
+                description: "Юпитер — крупнейшая планета Солнечной системы, газовый гигант. Состоит в основном из водорода и гелия. Имеет Большое Красное Пятно — гигантский шторм, существующий более 300 лет.",
+                rotationPeriod: 0.41,
+                mass: "1.8982 × 10^27 кг",
+                surfaceTemp: "-145°C (верхние слои облаков)",
+                atmosphere: "Водород (89.8%), гелий (10.2%), метан, аммиак"
+            },
+            {
+                name: "Сатурн",
+                color: "#EAC784",
+                radius: 58232,
+                distance: 1434,
+                period: 10747,
+                tilt: 2.5,
+                moons: [
+                    { name: "Титан", radius: 2575, distance: 1.222, period: 15.95, color: "#D9AB6A", description: "Титан — второй по размеру спутник в Солнечной системе. Единственный спутник с плотной атмосферой, состоящей в основном из азота.", rotationPeriod: 15.95 },
+                    { name: "Энцелад", radius: 252, distance: 0.238, period: 1.37, color: "#F0F0F0", description: "Энцелад покрыт чистым льдом, отражающим почти весь солнечный свет. На южном полюсе обнаружены гейзеры водяного пара.", rotationPeriod: 1.37 }
+                ],
+                hasRings: true,
+                ringDetails: {
+                    innerRadius: 74500,
+                    outerRadius: 136780,
+                    thickness: 10,
+                    color: "#C2A97D"
+                },
+                description: "Сатурн — вторая по величине планета Солнечной системы, известная своей обширной системой колец. Газовый гигант с плотностью меньше воды, теоретически мог бы плавать в воде.",
+                rotationPeriod: 0.44,
+                mass: "5.6834 × 10^26 кг",
+                surfaceTemp: "-178°C (верхние слои облаков)",
+                atmosphere: "Водород (96.3%), гелий (3.25%), метан, аммиак"
+            },
+            {
+                name: "Уран",
+                color: "#5B84B1",
+                radius: 25362,
+                distance: 2871,
+                period: 30589,
+                tilt: 0.8,
+                moons: [
+                    { name: "Титания", radius: 788, distance: 0.436, period: 8.71, color: "#D0D0D0", description: "Титания — крупнейший спутник Урана.Поверхность покрыта кратерами и разломами.", rotationPeriod: 8.71 },
+                    { name: "Оберон", radius: 761, distance: 0.583, period: 13.46, color: "#C0C0C0", description: "Оберон — второй по величине спутник Урана. Имеет древнюю поверхность с многочисленными кратерами.", rotationPeriod: 13.46 }
+                ],
+                hasRings: true,
+                ringDetails: {
+                    innerRadius: 38000,
+                    outerRadius: 51140,
+                    thickness: 10,
+                    color: "#A0A0A0"
+                },
+                description: "Уран — ледяной гигант, третья по размеру планета Солнечной системы. Уникален тем, что вращается почти на боку — ось вращения наклонена на 98 градусов к плоскости орбиты.",
+                rotationPeriod: 0.72,
+                mass: "8.6810 × 10^25 кг",
+                surfaceTemp: "-224°C (верхние слои облаков)",
+                atmosphere: "Водород (82.5%), гелий (15.2%), метан (2.3%)"
+            },
+            {
+                name: "Нептун",
+                color: "#1D6A96",
+                radius: 24622,
+                distance: 4495,
+                period: 59800,
+                tilt: 1.8,
+                moons: [
+                    { name: "Тритон", radius: 1353, distance: 0.355, period: -5.88, color: "#E0E0E0", description: "Тритон — крупнейший спутник Нептуна. Уникален тем, что движется по ретроградной орбите. Имеет активные гейзеры жидкого азота.", rotationPeriod: 5.88 },
+                ],
+                hasRings: true,
+                ringDetails: {
+                    innerRadius: 40900,
+                    outerRadius: 62930,
+                    thickness: 10,
+                    color: "#909090"
+                },
+                description: "Нептун — ледяной гигант, самая дальняя планета от Солнца. Имеет сильные ветры (до 2100 км/ч) и Большое Темное Пятно — антициклон размером с Землю.",
+                rotationPeriod: 0.67,
+                mass: "1.0243 × 10^26 кг",
+                surfaceTemp: "-218°C (верхние слои облаков)",
+                atmosphere: "Водород (80%), гелий (19%), метан (1%)"
+            }
+        ];
+
+        // Эффекты текстуры для планет
+        const planetTextures = {};
+
+        // Загрузка и создание текстур для Солнца (свечение)
+        function createSunGlow(size) {
+            const glowCanvas = document.createElement('canvas');
+            const glowSize = size * 3;
+            glowCanvas.width = glowSize;
+            glowCanvas.height = glowSize;
+            const glowCtx = glowCanvas.getContext('2d');
+
+            const gradient = glowCtx.createRadialGradient(
+                glowSize/2, glowSize/2, size/2,
+                glowSize/2, glowSize/2, glowSize/2
+            );
+            gradient.addColorStop(0, 'rgba(253, 184, 19, 1)');
+            gradient.addColorStop(0.2, 'rgba(255, 160, 0, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 120, 0, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+
+            glowCtx.fillStyle = gradient;
+            glowCtx.fillRect(0, 0, glowSize, glowSize);
+
+            return glowCanvas;
+        }
+
+        // Обработчики событий
+        speedSlider.addEventListener('input', function() {
+            timeSpeed = parseFloat(this.value);
+            speedValue.textContent = timeSpeed.toFixed(1) + 'x';
+        });
+
+        scaleSlider.addEventListener('input', function() {
+            scaleFactor = parseFloat(this.value);
+            scaleValue.textContent = scaleFactor.toFixed(1) + 'x';
+        });
+
+        sizeScaleSlider.addEventListener('input', function() {
+            planetSizeFactor = parseFloat(this.value);
+            sizeScaleValue.textContent = planetSizeFactor.toFixed(1) + 'x';
+        });
+
+        showLabelsCheckbox.addEventListener('change', function() {
+            showLabels = this.checked;
+        });
+
+        showOrbitsCheckbox.addEventListener('change', function() {
+            showOrbits = this.checked;
+        });
+      resetButton.addEventListener('click', function() {
+            timeSpeed = 1;
+            scaleFactor = 1;
+            planetSizeFactor = 1;
+            speedSlider.value = 1;
+            scaleSlider.value = 1;
+            sizeScaleSlider.value = 1;
+            speedValue.textContent = '1x';
+            scaleValue.textContent = '1x';
+            sizeScaleValue.textContent = '1x';
+            showLabelsCheckbox.checked = true;
+            showOrbitsCheckbox.checked = true;
+            showLabels = true;
+            showOrbits = true;
+            time = 0;
+            simulationDays = 0;
+            followPlanet = null;
+            focusPoint = { x: centerX, y: centerY };
+            selectedPlanet = null;
+            infoPanel.style.display = 'none';
+        });
+
+        toggleControlsButton.addEventListener('click', function() {
+            const controls = document.querySelector('.controls');
+            const legend = document.querySelector('.legend');
+
+            if (controlsVisible) {
+                controls.style.transform = 'translateX(-300px)';
+                legend.style.transform = 'translateX(300px)';
+                this.textContent = 'Показать панель';
+            } else {
+                controls.style.transform = 'translateX(0)';
+                legend.style.transform = 'translateX(0)';
+                this.textContent = 'Скрыть панель';
+            }
+
+            controlsVisible = !controlsVisible;
+        });
+
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            // Обновляем центр, если не следуем за планетой
+            if (!followPlanet) {
+                focusPoint.x = canvas.width / 2;
+                focusPoint.y = canvas.height / 2;
+            }
+        });
+
+        // Обработка кликов по планетам
+        canvas.addEventListener('click', function(event) {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+
+            // Проверяем, попал ли клик на какую-либо планету
+            let clickedPlanet = null;
+            for (let i = 0; i < planets.length; i++) {
+                const planet = planets[i];
+                const planetPos = getPlanetPosition(planet, time);
+
+                // Размер планеты на экране
+                const displaySize = getPlanetDisplaySize(planet);
+
+                // Проверяем, находится ли клик внутри планеты
+                const dx = clickX - (planetPos.x + focusPoint.x - centerX);
+                const dy = clickY - (planetPos.y + focusPoint.y - centerY);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance <= displaySize) {
+                    clickedPlanet = planet;
+                    break;
+                }
+
+                // Проверяем клик на спутниках планеты
+                for (let j = 0; j < planet.moons.length; j++) {
+                    const moon = planet.moons[j];
+                    const moonAngle = (time / moon.period) * Math.PI * 2;
+                    const moonDistance = displaySize * 2 + j * 5;
+
+                    const moonX = planetPos.x + focusPoint.x - centerX + moonDistance * Math.cos(moonAngle);
+                    const moonY = planetPos.y + focusPoint.y - centerY + moonDistance * Math.sin(moonAngle);
+
+                    const moonSize = Math.max(2, displaySize * 0.3);
+
+                    const mdx = clickX - moonX;
+                    const mdy = clickY - moonY;
+                    const moonDist = Math.sqrt(mdx * mdx + mdy * mdy);
+
+                    if (moonDist <= moonSize) {
+                        clickedPlanet = { ...moon, parentPlanet: planet };
+                        break;
+                    }
+                }
+            }
+      if (clickedPlanet) {
+                // Если планета выбрана, показываем информацию о ней
+                selectedPlanet = clickedPlanet;
+                showPlanetInfo(clickedPlanet);
+
+                // Если двойной клик на планете, следуем за ней
+                if (followPlanet === clickedPlanet) {
+                    followPlanet = null;
+                } else {
+                    followPlanet = clickedPlanet;
+                }
+            } else {
+                // Клик по пустому месту - убираем выделение
+                selectedPlanet = null;
+                infoPanel.style.display = 'none';
+                followPlanet = null;
+            }
+        });
+
+        // Отслеживание движения мыши для определения наведения на планеты
+        canvas.addEventListener('mousemove', function(event) {
+            const
+      canvas.addEventListener('mousemove', function(event) {
+    const rect = canvas.getBoundingClientRect();
+    mousePosition.x = event.clientX - rect.left;
+    mousePosition.y = event.clientY - rect.top;
+
+    // Проверяем наведение на планеты
+    hoveredPlanet = null;
+    for (let i = 0; i < planets.length; i++) {
+        const planet = planets[i];
+        const planetPos = getPlanetPosition(planet, time);
+
+        const displaySize = getPlanetDisplaySize(planet);
+
+        const dx = mousePosition.x - (planetPos.x + focusPoint.x - centerX);
+        const dy = mousePosition.y - (planetPos.y + focusPoint.y - centerY);
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance <= displaySize) {
+            hoveredPlanet = planet;
+            canvas.style.cursor = 'pointer';
+            break;
+        }
+
+        // Проверяем наведение на спутники
+        for (let j = 0; j < planet.moons.length; j++) {
+            const moon = planet.moons[j];
+            const moonAngle = (time / moon.period) * Math.PI * 2;
+            const moonDistance = displaySize * 2 + j * 5;
+
+            const moonX = planetPos.x + focusPoint.x - centerX + moonDistance * Math.cos(moonAngle);
+            const moonY = planetPos.y + focusPoint.y - centerY + moonDistance * Math.sin(moonAngle);
+
+            const moonSize = Math.max(2, displaySize * 0.3);
+
+            const mdx = mousePosition.x - moonX;
+            const mdy = mousePosition.y - moonY;
+            const moonDist = Math.sqrt(mdx * mdx + mdy * mdy);
+
+            if (moonDist <= moonSize) {
+                hoveredPlanet = { ...moon, parentPlanet: planet };
+                canvas.style.cursor = 'pointer';
+                break;
+            }
+        }
+    }
+
+
+        // Функция для получения позиции планеты в заданное время
+        function getPlanetPosition(planet, t) {
+            if (planet.distance === 0) {
+                return { x: centerX, y: centerY };
+            }
+
+            const angle = (t / planet.period) * Math.PI * 2;
+            const tiltRad = (planet.tilt * Math.PI) / 180;
+
+            // Базовая орбитальная дистанция
+            const orbitSize = planet.distance * 0.4 * scaleFactor;
+
+            // Эллиптические орбиты (немного сплющенные)
+            const eccentricity = 0.1;
+            const a = orbitSize;
+            const b = orbitSize * (1 - eccentricity);
+
+            const x = centerX + a * Math.cos(angle);
+            const y = centerY + b * Math.sin(angle) * Math.cos(tiltRad);
+
+            return { x, y };
+        }
+
+        // Функция для получения отображаемого размера планеты
+        function getPlanetDisplaySize(planet) {
+            // Базовый размер
+            let size;
+            if (planet.name === "Солнце") {
+                size = 20;
+            } else {
+                // Логарифмическая шкала для размеров планет
+                size = Math.log(planet.radius / 1000) * 1.8;
+            }
+
+            // Применяем пользовательский масштаб
+            size *= planetSizeFactor;
+
+            return Math.max(2, size);
+        }
+
+        // Функция для отображения информации о планете
+        function showPlanetInfo(planet) {
+            infoPanel.style.display = 'block';
+
+            let html = '';
+
+            if (planet.parentPlanet) {
+                // Если это спутник
+                html = `
+                    <h4>${planet.name} (спутник ${planet.parentPlanet.name})</h4>
+                    <p><strong>Радиус:</strong> ${planet.radius} км</p>
+                    <p><strong>Расстояние от планеты:</strong> ${planet.distance} млн. км</p>
+                    <p><strong>Орбитальный период:</strong> ${Math.abs(planet.period)} дней</p>
+                    <p><strong>Период вращения:</strong> ${Math.abs(planet.rotationPeriod)} дней</p>
+                    <p>${planet.description || ''}</p>
+                `;
+            } else {
+                // Если это планета
+                html = `
+                    <h4>${planet.name}</h4>
+                    <p><strong>Радиус:</strong> ${planet.radius} км</p>
+                    <p><strong>Масса:</strong> ${planet.mass}</p>
+                    <p><strong>Расстояние от Солнца:</strong> ${planet.distance} млн. км</p>
+                    <p><strong>Орбитальный период:</strong> ${planet.period} дней</p>
+                <p><strong>Период вращения:</strong> ${Math.abs(planet.rotationPeriod)} дней</p>
+                    <p><strong>Температура поверхности:</strong> ${planet.surfaceTemp}</p>
+                    <p><strong>Атмосфера:</strong> ${planet.atmosphere}</p>
+                    <p>${planet.description}</p>
+                `;
+            }
+
+            infoContent.innerHTML = html;
+        }
+
+        // Главная функция анимации
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Увеличиваем время симуляции
+            time += 0.1 * timeSpeed;
+            simulationDays = Math.floor(time);
+            timeStat.textContent = Симуляция времени: ${simulationDays} дней;
+
+            // Если следуем за планетой, обновляем фокус
+            if (followPlanet) {
+                const planetPos = getPlanetPosition(followPlanet, time);
+                focusPoint.x = centerX - planetPos.x + centerX;
+                focusPoint.y = centerY - planetPos.y + centerY;
+            }
+
+            // Рисуем орбиты
+            if (showOrbits) {
+                drawOrbits();
+            }
+
+            // Рисуем планеты
+            drawPlanets();
+
+            requestAnimationFrame(animate);
+        }
+
+        // Функция для рисования орбит
+        function drawOrbits() {
+            ctx.lineWidth = 0.5;
+
+            for (let i = 1; i < planets.length; i++) {
+                const planet = planets[i];
+
+                // Базовая орбитальная дистанция
+                const orbitSize = planet.distance * 0.4 * scaleFactor;
+
+                // Эллиптические орбиты
+                const eccentricity = 0.1;
+                const a = orbitSize;
+                const b = orbitSize * (1 - eccentricity);
+
+                // Цвет орбиты
+                ctx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
+
+                // Рисуем орбиту как эллипс
+                ctx.beginPath();
+                ctx.ellipse(
+                    focusPoint.x,
+                    focusPoint.y,
+                    a,
+                    b,
+                    0,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.stroke();
+            }
+        }
+
+    // Функция для рисования планет
+    function drawPlanets() {
+        // Сначала рисуем Солнце (всегда на заднем плане)
+        const sun = planets[0];
+        const sunSize = getPlanetDisplaySize(sun);
+
+        // Рисуем свечение вокруг Солнца
+        const gradient = ctx.createRadialGradient(
+            focusPoint.x, focusPoint.y, sunSize,
+            focusPoint.x, focusPoint.y, sunSize * 2
+        );
+        gradient.addColorStop(0, 'rgba(255, 160, 0, 0.8)');
+        gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(focusPoint.x, focusPoint.y, sunSize * 2, 0, Math.PI * 2);
+        ctx.fill();
+
+    // Рисуем само Солнце
+    ctx.fillStyle = sun.color;
+    ctx.beginPath();
+    ctx.arc(focusPoint.x, focusPoint.y, sunSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Рисуем метку для Солнца, если включено
+    if (showLabels) {
+        ctx.fillStyle = 'white';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(sun.name, focusPoint.x, focusPoint.y + sunSize + 15);
+    }
+
+    // Рисуем остальные планеты
+    for (let i = 1; i < planets.length; i++) {
+        const planet = planets[i];
+        const planetPos = getPlanetPosition(planet, time);
+        const displaySize = getPlanetDisplaySize(planet);
+
+        // Рисуем планету
+        ctx.fillStyle = planet.color;
+        ctx.beginPath();
+        ctx.arc(
+            planetPos.x + focusPoint.x - centerX,
+            planetPos.y + focusPoint.y - centerY,
+            displaySize,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+
+        // Рисуем кольца у планет, которые их имеют
+        if (planet.hasRings) {
+            const rings = planet.ringDetails;
+            const ringInner = displaySize * 1.2;
+            const ringOuter = displaySize * 1.8;
+
+            ctx.strokeStyle = rings.color;
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            ctx.ellipse(
+                planetPos.x + focusPoint.x - centerX,
+                planetPos.y + focusPoint.y - centerY,
+                ringOuter,
+                ringOuter * 0.3,
+                Math.PI / 4,
+                0,
+                Math.PI * 2
+            );
+        ctx.stroke();
+        }
+
+        // Рисуем метку для планеты, если включено
+        if (showLabels) {
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                planet.name,
+                planetPos.x + focusPoint.x - centerX,
+                planetPos.y + focusPoint.y - centerY + displaySize + 15
+            );
+        }
+
+        // Рисуем спутники планеты
+        for (let j = 0; j < planet.moons.length; j++) {
+            const moon = planet.moons[j];
+            const moonAngle = (time / moon.period) * Math.PI * 2;
+            const moonDistance = displaySize * 2 + j * 5;
+
+            const moonX = planetPos.x + focusPoint.x - centerX + moonDistance * Math.cos(moonAngle);
+            const moonY = planetPos.y + focusPoint.y - centerY + moonDistance * Math.sin(moonAngle);
+
+            const moonSize = Math.max(2, displaySize * 0.3);
+
+            // Рисуем путь спутника (если включен показ орбит)
+            if (showOrbits) {
+                ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+                ctx.beginPath();
+                ctx.arc(
+                    planetPos.x + focusPoint.x - centerX,
+                    planetPos.y + focusPoint.y - centerY,
+                    moonDistance,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.stroke();
+            }
+
+            // Рисуем спутник
+            ctx.fillStyle = moon.color || '#D0D0D0';
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonSize, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Рисуем метку для спутника, если включено
+            if (showLabels) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(moon.name, moonX, moonY + moonSize + 10);
+            }
+        }
+
+        // Если планета под курсором или выбрана, рисуем подсветку
+        if (hoveredPlanet === planet || selectedPlanet === planet) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(
+                planetPos.x + focusPoint.x - centerX,
+                planetPos.y + focusPoint.y - centerY,
+                displaySize + 5,
+                0,
+                Math.PI * 2
+            );
+            ctx.stroke();
+        }
+    }
+}
+
+// Запуск анимации
+animate();
+    </script>
+</body>
+</html>
